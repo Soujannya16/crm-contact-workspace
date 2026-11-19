@@ -19,7 +19,14 @@ Run frontend commands from `frontend/`:
 - `npm run lint` runs ESLint.
 - `npm run preview` serves the production bundle locally after a build.
 
-There is currently no test script, test framework, or backend package configuration, so there is no single-test command yet. Do not invent test commands; when a test runner is introduced, document both its full-suite and single-test invocation here.
+Run backend commands from `backend/`:
+
+- `npm run dev` starts the Express development server with tsx.
+- `npm run build` compiles TypeScript to `dist/`.
+- `npm run start` serves the compiled backend with Node.
+- `npm run seed` seeds the SQLite database.
+- `npm test` runs the full backend test suite using Vitest.
+- `npx vitest run tests/contacts.test.ts` runs a single test file.
 
 ## Repository-specific conventions
 
