@@ -26,7 +26,4 @@ projects:
             rootDir: frontend/
             envVars:
               - key: VITE_API_URL
-                fromService:
-                  name: crm-contact-backend
-                  type: web
-                  envVarKey: RENDER_EXTERNAL_HOSTNAME
+                value: https://crm-contact-backend-x5nh.onrender.com
