@@ -1,0 +1,27 @@
+# Exported from Render on 2026-11-20T14:32:21Z
+version: "1"
+projects:
+  - name: CRM Contact
+    environments:
+      - name: Production
+        services:
+          - type: web
+            name: crm-contact-backend
+            runtime: node
+            repo: https://github.com/Soujannya16/crm-contact-workspace
+            plan: free
+            region: oregon
+            buildCommand: npm install && npm run build
+            startCommand: npm start
+            autoDeployTrigger: commit
+            rootDir: backend/
+          - type: web
+            name: crm-contact-frontend
+            runtime: static
+            repo: https://github.com/Soujannya16/crm-contact-workspace
+            plan: free
+            region: oregon
+            buildCommand: npm install && npm run build
+            startCommand: npm start
+            autoDeployTrigger: commit
+            rootDir: frontend/
