@@ -1,3 +1,8 @@
+# System Design & Functional Requirements
+
+> [!NOTE]
+> For the comprehensive end-to-end technical implementation document (including the system architecture diagram, complete SQLite schema with indexes, optimistic concurrency control flow, and automated test coverage), see [`docs/ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ### Functional Requirements
 
 - Users can view contacts
@@ -219,3 +224,28 @@ GET    /contacts/{id}/activities
 GET    /tags
 
 That's only **8 endpoints** and satisfies every mandatory requirement in the PDF. The key design choice is collapsing **search, filter, sort, and pagination** into a single `GET /contacts` endpoint instead of creating separate APIs.
+
+---
+
+## Scale Considerations
+
+If the production system had to scale to enterprise production volumes, the following architectural evolutions would be made:
+
+1. **Millions of contacts per large account**:
+   - Replace offset-based pagination (`LIMIT/OFFSET`) with keyset (cursor-based) pagination (`WHERE (created_at, id) < (:last_created_at, :last_id) ORDER BY created_at DESC LIMIT 20`) to execute in $O(\log N)$ time.
+   - Add composite B-tree indexes: `(company, created_at DESC)` and `(last_name, first_name)`.
+   - Partition tables horizontally by `account_id` to prevent multi-tenant noisy-neighbor degradation.
+
+2. **Millions of contact updates per day**:
+   - Decouple audit activity logging from the primary update transaction using an asynchronous distributed event bus (Apache Kafka or AWS SQS).
+   - Use write batching and database connection pooling (PgBouncer / RDS Proxy).
+
+3. **Frequent searches and filters**:
+   - Deploy a dedicated inverted search engine (Elasticsearch, Meilisearch, or SQLite `FTS5` / PostgreSQL `pg_trgm`).
+   - Introduce a distributed Redis caching layer for distinct company names and tag metadata.
+
+4. **Many simultaneous users**:
+   - Run multiple stateless Express instances horizontally scaled behind an Application Load Balancer.
+   - Employ database read replicas to separate heavy read traffic from writes.
+
+*For full architectural scaling details, refer to [`docs/ARCHITECTURE.md#scale-considerations`](ARCHITECTURE.md#scale-considerations).*
