@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { contactsApi, ApiError } from '../api/contactsApi';
-import type { Contact, ContactListQuery, ContactUpdateInput, ConflictError, Pagination, Tag } from '../types/contact';
+import type { Activity, Contact, ContactListQuery, ContactUpdateInput, ConflictError, Pagination, Tag } from '../types/contact';
 
 export interface ContactsState {
   items: Contact[];
@@ -15,6 +15,14 @@ export interface ContactsState {
   updateLoading: boolean;
   updateSuccess: boolean;
   conflictError: ConflictError | null;
+  tagLoading: boolean;
+  tagError: string | null;
+  bulkAssignLoading: boolean;
+  bulkAssignResult: { assigned: number; skipped: number } | null;
+  selectedContactIds: number[];
+  activities: Activity[];
+  activitiesLoading: boolean;
+  activitiesError: string | null;
 }
 
 const initialState: ContactsState = {
@@ -35,6 +43,14 @@ const initialState: ContactsState = {
   updateLoading: false,
   updateSuccess: false,
   conflictError: null,
+  tagLoading: false,
+  tagError: null,
+  bulkAssignLoading: false,
+  bulkAssignResult: null,
+  selectedContactIds: [],
+  activities: [],
+  activitiesLoading: false,
+  activitiesError: null,
 };
 
 export const fetchContacts = createAsyncThunk(
@@ -109,6 +125,51 @@ export const fetchCompanies = createAsyncThunk(
   }
 );
 
+export const addTagToContact = createAsyncThunk(
+  'contacts/addTagToContact',
+  async ({ contactId, tagId }: { contactId: number; tagId: number }, { rejectWithValue }) => {
+    try {
+      return await contactsApi.addTagToContact(contactId, tagId);
+    } catch (err) {
+      return rejectWithValue((err as Error).message || 'Failed to add tag');
+    }
+  }
+);
+
+export const removeTagFromContact = createAsyncThunk(
+  'contacts/removeTagFromContact',
+  async ({ contactId, tagId, tagName }: { contactId: number; tagId: number; tagName: string }, { rejectWithValue }) => {
+    try {
+      await contactsApi.removeTagFromContact(contactId, tagId);
+      return { contactId, tagId, tagName };
+    } catch (err) {
+      return rejectWithValue((err as Error).message || 'Failed to remove tag');
+    }
+  }
+);
+
+export const bulkAssignTag = createAsyncThunk(
+  'contacts/bulkAssignTag',
+  async ({ contactIds, tagId }: { contactIds: number[]; tagId: number }, { rejectWithValue }) => {
+    try {
+      return await contactsApi.bulkAssignTag(contactIds, tagId);
+    } catch (err) {
+      return rejectWithValue((err as Error).message || 'Failed to bulk assign tag');
+    }
+  }
+);
+
+export const fetchActivities = createAsyncThunk(
+  'contacts/fetchActivities',
+  async (contactId: number, { rejectWithValue }) => {
+    try {
+      return await contactsApi.getActivities(contactId);
+    } catch (err) {
+      return rejectWithValue((err as Error).message || 'Failed to fetch activities');
+    }
+  }
+);
+
 export const contactsSlice = createSlice({
   name: 'contacts',
   initialState,
@@ -124,6 +185,27 @@ export const contactsSlice = createSlice({
       state.detailError = null;
       state.conflictError = null;
       state.updateSuccess = false;
+      state.activities = [];
+      state.activitiesLoading = false;
+      state.activitiesError = null;
+    },
+    toggleContactSelection(state, action: PayloadAction<number>) {
+      const id = action.payload;
+      const idx = state.selectedContactIds.indexOf(id);
+      if (idx === -1) state.selectedContactIds.push(id);
+      else state.selectedContactIds.splice(idx, 1);
+    },
+    selectAllContacts(state, action: PayloadAction<number[]>) {
+      state.selectedContactIds = action.payload;
+    },
+    clearContactSelection(state) {
+      state.selectedContactIds = [];
+    },
+    clearTagError(state) {
+      state.tagError = null;
+    },
+    clearBulkResult(state) {
+      state.bulkAssignResult = null;
     },
   },
   extraReducers: (builder) => {
@@ -190,8 +272,62 @@ export const contactsSlice = createSlice({
     builder.addCase(fetchCompanies.fulfilled, (state, action: PayloadAction<string[]>) => {
       state.availableCompanies = action.payload;
     });
+
+    // addTagToContact
+    builder.addCase(addTagToContact.pending, (state) => { state.tagLoading = true; state.tagError = null; });
+    builder.addCase(addTagToContact.fulfilled, (state, action) => {
+      state.tagLoading = false;
+      const { tagName } = action.payload;
+      if (state.selectedContact && !state.selectedContact.tags.includes(tagName)) {
+        state.selectedContact.tags = [...state.selectedContact.tags, tagName];
+      }
+    });
+    builder.addCase(addTagToContact.rejected, (state, action) => {
+      state.tagLoading = false;
+      state.tagError = (action.payload as string) || 'Failed to add tag';
+    });
+
+    // removeTagFromContact
+    builder.addCase(removeTagFromContact.pending, (state) => { state.tagLoading = true; state.tagError = null; });
+    builder.addCase(removeTagFromContact.fulfilled, (state, action) => {
+      state.tagLoading = false;
+      const { tagName } = action.payload;
+      if (state.selectedContact) {
+        state.selectedContact.tags = state.selectedContact.tags.filter(t => t !== tagName);
+      }
+    });
+    builder.addCase(removeTagFromContact.rejected, (state, action) => {
+      state.tagLoading = false;
+      state.tagError = (action.payload as string) || 'Failed to remove tag';
+    });
+
+    // bulkAssignTag
+    builder.addCase(bulkAssignTag.pending, (state) => { state.bulkAssignLoading = true; });
+    builder.addCase(bulkAssignTag.fulfilled, (state, action) => {
+      state.bulkAssignLoading = false;
+      state.bulkAssignResult = action.payload;
+      state.selectedContactIds = [];
+    });
+    builder.addCase(bulkAssignTag.rejected, (state, action) => {
+      state.bulkAssignLoading = false;
+      state.tagError = (action.payload as string) || 'Failed to bulk assign';
+    });
+
+    // fetchActivities
+    builder.addCase(fetchActivities.pending, (state) => {
+      state.activitiesLoading = true;
+      state.activitiesError = null;
+    });
+    builder.addCase(fetchActivities.fulfilled, (state, action: PayloadAction<Activity[]>) => {
+      state.activitiesLoading = false;
+      state.activities = action.payload;
+    });
+    builder.addCase(fetchActivities.rejected, (state, action) => {
+      state.activitiesLoading = false;
+      state.activitiesError = (action.payload as string) || 'Failed to load activities';
+    });
   },
 });
 
-export const { clearConflict, clearUpdateSuccess, resetSelectedContact } = contactsSlice.actions;
+export const { clearConflict, clearUpdateSuccess, resetSelectedContact, toggleContactSelection, selectAllContacts, clearContactSelection, clearTagError, clearBulkResult } = contactsSlice.actions;
 export default contactsSlice.reducer;

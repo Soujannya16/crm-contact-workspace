@@ -29,10 +29,18 @@ export interface Tag {
   name: string;
 }
 
+export type ActivityType = 'CONTACT_UPDATED' | 'TAG_ADDED' | 'TAG_REMOVED';
+
 export interface Activity {
   id: number;
   contactId: number;
-  type: 'CONTACT_UPDATED' | 'TAG_ADDED' | 'TAG_REMOVED';
+  type: ActivityType;
+  timestamp: string;
+}
+
+export interface ActivityItem {
+  id: number;
+  type: ActivityType;
   timestamp: string;
 }
 

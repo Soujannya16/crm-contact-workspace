@@ -1,4 +1,4 @@
-import type { Contact, ContactListQuery, ContactUpdateInput, PaginatedResponse, Tag } from '../types/contact';
+import type { Activity, Contact, ContactListQuery, ContactUpdateInput, PaginatedResponse, Tag } from '../types/contact';
 
 const BASE_URL = '/api';
 
@@ -40,7 +40,8 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     throw new ApiError(message, response.status, errorData);
   }
 
-  return response.json();
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
 }
 
 export const contactsApi = {
@@ -75,5 +76,21 @@ export const contactsApi = {
 
   getCompanies(): Promise<string[]> {
     return request<string[]>('/contacts/meta/companies');
+  },
+
+  addTagToContact(contactId: number, tagId: number): Promise<{ contactId: number; tagId: number; tagName: string }> {
+    return request(`/contacts/${contactId}/tags`, { method: 'POST', body: JSON.stringify({ tagId }) });
+  },
+
+  removeTagFromContact(contactId: number, tagId: number): Promise<void> {
+    return request<void>(`/contacts/${contactId}/tags/${tagId}`, { method: 'DELETE' });
+  },
+
+  bulkAssignTag(contactIds: number[], tagId: number): Promise<{ assigned: number; skipped: number }> {
+    return request('/contacts/tags/bulk', { method: 'POST', body: JSON.stringify({ contactIds, tagId }) });
+  },
+
+  getActivities(contactId: number): Promise<Activity[]> {
+    return request<Activity[]>(`/contacts/${contactId}/activities`);
   },
 };

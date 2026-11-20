@@ -1,6 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Users, AlertCircle } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '../../store';
+import { toggleContactSelection } from '../../store/contactsSlice';
 import type { Contact } from '../../types/contact';
 
 interface ContactTableProps {
@@ -9,6 +12,8 @@ interface ContactTableProps {
   error: string | null;
   onClearFilters: () => void;
   hasFilters: boolean;
+  onSelectAll: (ids: number[]) => void;
+  allSelected: boolean;
 }
 
 const TAG_COLOR_MAP: Record<string, string> = {
@@ -38,7 +43,11 @@ export const ContactTable: React.FC<ContactTableProps> = ({
   error,
   onClearFilters,
   hasFilters,
+  onSelectAll,
+  allSelected,
 }) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const selectedContactIds = useSelector((state: RootState) => state.contacts.selectedContactIds);
   if (error) {
     return (
       <div className="error-card">
@@ -57,6 +66,7 @@ export const ContactTable: React.FC<ContactTableProps> = ({
         <table className="contacts-table">
           <thead>
             <tr>
+              <th className="checkbox-col"></th>
               <th>Name</th>
               <th>Email</th>
               <th>Phone</th>
@@ -69,6 +79,7 @@ export const ContactTable: React.FC<ContactTableProps> = ({
           <tbody>
             {Array.from({ length: 6 }).map((_, i) => (
               <tr key={i} className="skeleton-row">
+                <td className="checkbox-col"><div className="skeleton-cell w-4"></div></td>
                 <td><div className="skeleton-cell w-32"></div></td>
                 <td><div className="skeleton-cell w-48"></div></td>
                 <td><div className="skeleton-cell w-28"></div></td>
@@ -108,6 +119,13 @@ export const ContactTable: React.FC<ContactTableProps> = ({
       <table className="contacts-table">
         <thead>
           <tr>
+            <th className="checkbox-col">
+              <input
+                type="checkbox"
+                checked={allSelected && contacts.length > 0}
+                onChange={(e) => e.target.checked ? onSelectAll(contacts.map(c => c.id)) : onSelectAll([])}
+              />
+            </th>
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
@@ -120,6 +138,13 @@ export const ContactTable: React.FC<ContactTableProps> = ({
         <tbody>
           {contacts.map((contact) => (
             <tr key={contact.id} className="contact-row">
+              <td className="checkbox-col">
+                <input
+                  type="checkbox"
+                  checked={selectedContactIds.includes(contact.id)}
+                  onChange={() => dispatch(toggleContactSelection(contact.id))}
+                />
+              </td>
               <td className="font-medium">
                 <Link to={`/contacts/${contact.id}`} className="contact-name-link">
                   {contact.firstName} {contact.lastName}

@@ -17,12 +17,18 @@ import {
 import type { AppDispatch, RootState } from '../../store';
 import {
   fetchContactById,
+  fetchTags,
   updateContact,
   clearConflict,
   clearUpdateSuccess,
   resetSelectedContact,
+  addTagToContact,
+  removeTagFromContact,
+  clearTagError,
+  fetchActivities,
 } from '../../store/contactsSlice';
-import type { Contact } from '../../types/contact';
+import { ActivityHistory } from './ActivityHistory';
+import type { Contact, Tag } from '../../types/contact';
 
 const TAG_COLOR_MAP: Record<string, string> = {
   VIP: 'tag-vip',
@@ -241,6 +247,88 @@ const ContactEditForm: React.FC<ContactEditFormProps> = ({ contact, updateLoadin
   );
 };
 
+interface TagSelectorProps {
+  contact: Contact;
+  availableTags: Tag[];
+  tagLoading: boolean;
+  tagError: string | null;
+  onAdd: (tagId: number) => void;
+  onRemove: (tagId: number, tagName: string) => void;
+  onClearError: () => void;
+}
+
+const TagSelector: React.FC<TagSelectorProps> = ({
+  contact,
+  availableTags,
+  tagLoading,
+  tagError,
+  onAdd,
+  onRemove,
+  onClearError,
+}) => {
+  const unassignedTags = availableTags.filter((t) => !contact.tags.includes(t.name));
+
+  return (
+    <div className="tag-selector">
+      {/* Assigned chips */}
+      <div className="tags-container">
+        {contact.tags.length > 0 ? (
+          contact.tags.map((tagName) => (
+            <span key={tagName} className={`tag-chip-removable ${TAG_COLOR_MAP[tagName] || 'tag-default'}`}>
+              {tagName}
+              <button
+                type="button"
+                className="tag-remove-btn"
+                aria-label={`Remove ${tagName}`}
+                disabled={tagLoading}
+                onClick={() => {
+                  const tag = availableTags.find((t) => t.name === tagName);
+                  if (tag) onRemove(tag.id, tag.name);
+                }}
+              >
+                ×
+              </button>
+            </span>
+          ))
+        ) : (
+          <p className="text-muted text-sm">No tags assigned.</p>
+        )}
+      </div>
+
+      {/* Add tag dropdown */}
+      {unassignedTags.length > 0 && (
+        <div className="add-tag-row">
+          <select
+            className="filter-select"
+            disabled={tagLoading}
+            defaultValue=""
+            value=""
+            onChange={(e) => {
+              const tagId = parseInt(e.target.value, 10);
+              if (!isNaN(tagId)) onAdd(tagId);
+            }}
+          >
+            <option value="" disabled>+ Add tag…</option>
+            {unassignedTags.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          {tagLoading && <span className="tag-loading-text">Saving…</span>}
+        </div>
+      )}
+
+      {/* Error */}
+      {tagError && (
+        <div className="tag-error-banner">
+          <AlertTriangle size={14} />
+          <span>{tagError}</span>
+          <button type="button" onClick={onClearError} className="tag-error-dismiss">×</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ContactDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const contactId = parseInt(id || '', 10);
@@ -254,12 +342,20 @@ export const ContactDetailPage: React.FC = () => {
     updateLoading,
     updateSuccess,
     conflictError,
+    availableTags,
+    tagLoading,
+    tagError,
+    activities,
+    activitiesLoading,
+    activitiesError,
   } = useSelector((state: RootState) => state.contacts);
 
-  // Fetch contact on mount or ID change
+  // Fetch contact and activities on mount or ID change
   useEffect(() => {
     if (!isNaN(contactId)) {
       dispatch(fetchContactById(contactId));
+      dispatch(fetchTags());
+      dispatch(fetchActivities(contactId));
     }
     return () => {
       dispatch(resetSelectedContact());
@@ -276,19 +372,39 @@ export const ContactDetailPage: React.FC = () => {
     }
   }, [updateSuccess, dispatch]);
 
-  const handleSubmit = (data: { firstName: string; lastName: string; email: string; phone: string | null; company: string | null; version: number }) => {
+  const handleSubmit = async (data: { firstName: string; lastName: string; email: string; phone: string | null; company: string | null; version: number }) => {
     if (!selectedContact) return;
-    dispatch(
+    const res = await dispatch(
       updateContact({
         id: selectedContact.id,
         data,
       })
     );
+    if (updateContact.fulfilled.match(res)) {
+      dispatch(fetchActivities(selectedContact.id));
+    }
+  };
+
+  const handleAddTag = async (tagId: number) => {
+    if (!selectedContact) return;
+    const res = await dispatch(addTagToContact({ contactId: selectedContact.id, tagId }));
+    if (addTagToContact.fulfilled.match(res)) {
+      dispatch(fetchActivities(selectedContact.id));
+    }
+  };
+
+  const handleRemoveTag = async (tagId: number, tagName: string) => {
+    if (!selectedContact) return;
+    const res = await dispatch(removeTagFromContact({ contactId: selectedContact.id, tagId, tagName }));
+    if (removeTagFromContact.fulfilled.match(res)) {
+      dispatch(fetchActivities(selectedContact.id));
+    }
   };
 
   const handleReloadLatest = () => {
     dispatch(clearConflict());
     dispatch(fetchContactById(contactId));
+    dispatch(fetchActivities(contactId));
   };
 
   if (detailLoading && !selectedContact) {
@@ -401,7 +517,7 @@ export const ContactDetailPage: React.FC = () => {
 
         {/* Right Column: Metadata & Tags */}
         <div className="detail-sidebar">
-          {/* Tags Card */}
+          {/* Tags Card — interactive selector */}
           <div className="card">
             <div className="card-header">
               <div className="flex-header">
@@ -409,31 +525,31 @@ export const ContactDetailPage: React.FC = () => {
                 <h3>Assigned Tags</h3>
               </div>
             </div>
-            <div className="tags-container">
-              {selectedContact.tags && selectedContact.tags.length > 0 ? (
-                selectedContact.tags.map((tagName) => (
-                  <span
-                    key={tagName}
-                    className={`tag-badge-large ${TAG_COLOR_MAP[tagName] || 'tag-default'}`}
-                  >
-                    {tagName}
-                  </span>
-                ))
-              ) : (
-                <p className="text-muted text-sm">No tags assigned to this contact.</p>
-              )}
-            </div>
-            <p className="sidebar-hint">
-              Tags are read-only here. Tag addition and bulk assignment are managed through the Tag Management feature.
-            </p>
+            <TagSelector
+              contact={selectedContact}
+              availableTags={availableTags}
+              tagLoading={tagLoading}
+              tagError={tagError}
+              onAdd={handleAddTag}
+              onRemove={handleRemoveTag}
+              onClearError={() => dispatch(clearTagError())}
+            />
           </div>
+
+          {/* Activity History Card */}
+          <ActivityHistory
+            activities={activities}
+            loading={activitiesLoading}
+            error={activitiesError}
+            onRetry={() => dispatch(fetchActivities(selectedContact.id))}
+          />
 
           {/* Audit Metadata Card */}
           <div className="card">
             <div className="card-header">
               <div className="flex-header">
                 <Clock size={18} />
-                <h3>Audit History</h3>
+                <h3>Contact Overview</h3>
               </div>
             </div>
             <div className="metadata-list">

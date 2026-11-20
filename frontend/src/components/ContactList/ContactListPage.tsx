@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { CheckCircle } from 'lucide-react';
 import type { AppDispatch, RootState } from '../../store';
-import { fetchContacts, fetchTags, fetchCompanies } from '../../store/contactsSlice';
+import { fetchContacts, fetchTags, fetchCompanies, selectAllContacts, clearContactSelection, clearBulkResult, bulkAssignTag } from '../../store/contactsSlice';
 import { ContactFilters } from './ContactFilters';
 import { ContactTable } from './ContactTable';
 import { Pagination } from './Pagination';
@@ -19,7 +20,12 @@ export const ContactListPage: React.FC = () => {
     availableCompanies,
     listLoading,
     listError,
+    selectedContactIds,
+    bulkAssignLoading,
+    bulkAssignResult,
   } = useSelector((state: RootState) => state.contacts);
+
+  const [bulkTagId, setBulkTagId] = useState<number | ''>('');
 
   // Extract query values from URL
   const search = searchParams.get('search') || '';
@@ -81,6 +87,32 @@ export const ContactListPage: React.FC = () => {
 
   const hasFilters = Boolean(search || company || tag || sortBy !== 'createdAt' || order !== 'asc' || limit !== 20);
 
+  const allSelected = items.length > 0 && items.every(c => selectedContactIds.includes(c.id));
+
+  const handleSelectAll = useCallback((ids: number[]) => {
+    if (ids.length === 0) dispatch(clearContactSelection());
+    else dispatch(selectAllContacts(ids));
+  }, [dispatch]);
+
+  // Clear selection when filters change
+  useEffect(() => {
+    dispatch(clearContactSelection());
+  }, [dispatch, currentQuery]);
+
+  // Auto-clear bulk result after 5 seconds and re-fetch
+  useEffect(() => {
+    if (bulkAssignResult) {
+      dispatch(fetchContacts(currentQuery));
+      const t = setTimeout(() => dispatch(clearBulkResult()), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [bulkAssignResult, dispatch, currentQuery]);
+
+  const handleBulkAssign = useCallback(() => {
+    if (bulkTagId === '' || selectedContactIds.length === 0) return;
+    dispatch(bulkAssignTag({ contactIds: selectedContactIds, tagId: bulkTagId as number }));
+  }, [dispatch, bulkTagId, selectedContactIds]);
+
   return (
     <div className="contact-list-container">
       <div className="page-header">
@@ -105,12 +137,55 @@ export const ContactListPage: React.FC = () => {
         onReset={handleResetFilters}
       />
 
+      {selectedContactIds.length > 0 && (
+        <div className="bulk-toolbar">
+          <span className="bulk-count">{selectedContactIds.length} contact{selectedContactIds.length > 1 ? 's' : ''} selected</span>
+          <select
+            className="filter-select bulk-tag-select"
+            value={bulkTagId}
+            onChange={(e) => setBulkTagId(e.target.value ? Number(e.target.value) : '')}
+          >
+            <option value="">Assign tag…</option>
+            {availableTags.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={bulkTagId === '' || bulkAssignLoading}
+            onClick={handleBulkAssign}
+          >
+            {bulkAssignLoading ? 'Assigning…' : 'Assign'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => { dispatch(clearContactSelection()); setBulkTagId(''); }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {bulkAssignResult && (
+        <div className="alert-banner alert-success bulk-result-banner">
+          <CheckCircle size={18} className="alert-icon" />
+          <span>
+            Tag assigned to <strong>{bulkAssignResult.assigned}</strong> contact{bulkAssignResult.assigned !== 1 ? 's' : ''}.
+            {bulkAssignResult.skipped > 0 && ` (${bulkAssignResult.skipped} already had it)`}
+          </span>
+        </div>
+      )}
+
       <ContactTable
         contacts={items}
         loading={listLoading}
         error={listError}
         onClearFilters={handleResetFilters}
         hasFilters={hasFilters}
+        onSelectAll={handleSelectAll}
+        allSelected={allSelected}
       />
 
       <Pagination

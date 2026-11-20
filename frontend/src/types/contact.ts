@@ -51,3 +51,11 @@ export interface ConflictError {
   type: 'stale_update' | 'email_conflict' | 'validation' | 'unknown';
   message: string;
 }
+
+export type ActivityType = 'CONTACT_UPDATED' | 'TAG_ADDED' | 'TAG_REMOVED';
+
+export interface Activity {
+  id: number;
+  type: ActivityType;
+  timestamp: string;
+}

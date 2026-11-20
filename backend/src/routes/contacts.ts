@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import Database from 'better-sqlite3';
-import { ContactService, EmailConflictError, NotFoundError, StaleUpdateError } from '../services/contactService';
+import { ActivityService, ContactService, EmailConflictError, NotFoundError, StaleUpdateError, TagService, TagAlreadyAssignedError } from '../services/contactService';
 import { ContactListQuery } from '../types';
 
 const updateContactSchema = z.object({
@@ -13,9 +13,20 @@ const updateContactSchema = z.object({
   version: z.number().int().min(1, 'Version must be a positive integer'),
 });
 
+const addTagSchema = z.object({
+  tagId: z.number().int().positive('tagId must be a positive integer'),
+});
+
+const bulkAssignSchema = z.object({
+  contactIds: z.array(z.number().int().positive()).min(1, 'contactIds must have at least one entry'),
+  tagId: z.number().int().positive('tagId must be a positive integer'),
+});
+
 export function createContactsRouter(db: Database.Database): Router {
   const router = Router();
   const contactService = new ContactService(db);
+  const tagService = new TagService(db);
+  const activityService = new ActivityService(db);
 
   router.get('/', (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -33,6 +44,109 @@ export function createContactsRouter(db: Database.Database): Router {
       res.json(result);
     } catch (err) {
       next(err);
+    }
+  });
+
+  router.post('/tags/bulk', (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const parsed = bulkAssignSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.errors.map(e => ({ field: e.path.join('.'), message: e.message })),
+        });
+        return;
+      }
+      const { contactIds, tagId } = parsed.data;
+      try {
+        const result = tagService.bulkAssign(contactIds, tagId);
+        res.json(result);
+      } catch (err) {
+        if (err instanceof NotFoundError) {
+          res.status(404).json({ error: err.message });
+          return;
+        }
+        if (err instanceof Error && err.message.includes('FOREIGN KEY')) {
+          res.status(404).json({ error: 'One or more contact IDs do not exist' });
+          return;
+        }
+        throw err;
+      }
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/:id/tags', (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const paramId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const id = parseInt(paramId, 10);
+      if (isNaN(id)) {
+        res.status(400).json({ error: 'Invalid contact ID' });
+        return;
+      }
+
+      const parsed = addTagSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.errors.map(e => ({ field: e.path.join('.'), message: e.message })),
+        });
+        return;
+      }
+
+      const result = tagService.addTag(id, parsed.data.tagId);
+      res.status(201).json(result);
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        res.status(404).json({ error: err.message });
+      } else if (err instanceof TagAlreadyAssignedError) {
+        res.status(409).json({ error: err.errorCode, message: err.message });
+      } else {
+        next(err);
+      }
+    }
+  });
+
+  router.delete('/:id/tags/:tagId', (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const paramId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const paramTagId = Array.isArray(req.params.tagId) ? req.params.tagId[0] : req.params.tagId;
+      const id = parseInt(paramId, 10);
+      const tagId = parseInt(paramTagId, 10);
+      if (isNaN(id) || isNaN(tagId)) {
+        res.status(400).json({ error: 'Invalid ID' });
+        return;
+      }
+
+      tagService.removeTag(id, tagId);
+      res.status(204).send();
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        res.status(404).json({ error: err.message });
+      } else {
+        next(err);
+      }
+    }
+  });
+
+  router.get('/:id/activities', (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const paramId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const id = parseInt(paramId, 10);
+      if (isNaN(id)) {
+        res.status(400).json({ error: 'Invalid contact ID' });
+        return;
+      }
+
+      const activities = activityService.getActivitiesByContactId(id);
+      res.json(activities);
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        res.status(404).json({ error: err.message });
+      } else {
+        next(err);
+      }
     }
   });
 

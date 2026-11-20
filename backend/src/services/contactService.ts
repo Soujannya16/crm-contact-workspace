@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { Contact, ContactListQuery, ContactRow, ContactUpdateInput, PaginatedResponse } from '../types';
+import { ActivityItem, Contact, ContactListQuery, ContactRow, ContactUpdateInput, PaginatedResponse } from '../types';
 
 export class NotFoundError extends Error {
   statusCode = 404;
@@ -226,5 +226,109 @@ export class ContactService {
     });
 
     return updateTx();
+  }
+}
+
+export class TagAlreadyAssignedError extends Error {
+  statusCode = 409;
+  errorCode = 'tag_already_assigned';
+  constructor(msg = 'Tag is already assigned to this contact') {
+    super(msg);
+    this.name = 'TagAlreadyAssignedError';
+  }
+}
+
+export class TagService {
+  constructor(private db: Database.Database) {}
+
+  addTag(contactId: number, tagId: number): { contactId: number; tagId: number; tagName: string } {
+    return this.db.transaction(() => {
+      const contact = this.db.prepare('SELECT id FROM contacts WHERE id = ?').get(contactId);
+      if (!contact) throw new NotFoundError(`Contact with ID ${contactId} not found`);
+
+      const tag = this.db
+        .prepare('SELECT id, name FROM tags WHERE id = ?')
+        .get(tagId) as { id: number; name: string } | undefined;
+      if (!tag) throw new NotFoundError(`Tag with ID ${tagId} not found`);
+
+      const result = this.db
+        .prepare('INSERT OR IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)')
+        .run(contactId, tagId);
+
+      if (result.changes === 0) throw new TagAlreadyAssignedError();
+
+      this.db
+        .prepare("INSERT INTO activities (contact_id, type, timestamp) VALUES (?, 'TAG_ADDED', ?)")
+        .run(contactId, new Date().toISOString());
+
+      return { contactId, tagId, tagName: tag.name };
+    })();
+  }
+
+  removeTag(contactId: number, tagId: number): void {
+    this.db.transaction(() => {
+      const contact = this.db.prepare('SELECT id FROM contacts WHERE id = ?').get(contactId);
+      if (!contact) throw new NotFoundError(`Contact with ID ${contactId} not found`);
+
+      const tag = this.db.prepare('SELECT id FROM tags WHERE id = ?').get(tagId);
+      if (!tag) throw new NotFoundError(`Tag with ID ${tagId} not found`);
+
+      const result = this.db
+        .prepare('DELETE FROM contact_tags WHERE contact_id = ? AND tag_id = ?')
+        .run(contactId, tagId);
+
+      if (result.changes === 0) {
+        throw new NotFoundError(`Tag ${tagId} is not assigned to contact ${contactId}`);
+      }
+
+      this.db
+        .prepare("INSERT INTO activities (contact_id, type, timestamp) VALUES (?, 'TAG_REMOVED', ?)")
+        .run(contactId, new Date().toISOString());
+    })();
+  }
+
+  bulkAssign(contactIds: number[], tagId: number): { assigned: number; skipped: number } {
+    return this.db.transaction(() => {
+      const tag = this.db.prepare('SELECT id FROM tags WHERE id = ?').get(tagId);
+      if (!tag) throw new NotFoundError(`Tag with ID ${tagId} not found`);
+
+      let assigned = 0;
+      let skipped = 0;
+      const now = new Date().toISOString();
+
+      for (const contactId of contactIds) {
+        const result = this.db
+          .prepare('INSERT OR IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)')
+          .run(contactId, tagId);
+
+        if (result.changes === 1) {
+          this.db
+            .prepare("INSERT INTO activities (contact_id, type, timestamp) VALUES (?, 'TAG_ADDED', ?)")
+            .run(contactId, now);
+          assigned++;
+        } else {
+          skipped++;
+        }
+      }
+
+      return { assigned, skipped };
+    })();
+  }
+}
+
+export class ActivityService {
+  constructor(private db: Database.Database) {}
+
+  getActivitiesByContactId(contactId: number): ActivityItem[] {
+    const contact = this.db.prepare('SELECT id FROM contacts WHERE id = ?').get(contactId);
+    if (!contact) {
+      throw new NotFoundError(`Contact with ID ${contactId} not found`);
+    }
+
+    const rows = this.db
+      .prepare('SELECT id, type, timestamp FROM activities WHERE contact_id = ? ORDER BY timestamp DESC, id DESC')
+      .all(contactId) as ActivityItem[];
+
+    return rows;
   }
 }
