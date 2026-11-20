@@ -1,6 +1,6 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
+import Database from "better-sqlite3";
+import path from "path";
+import fs from "fs";
 
 let dbInstance: Database.Database | null = null;
 
@@ -9,9 +9,12 @@ export function getDatabase(dbPath?: string): Database.Database {
     return dbInstance;
   }
 
-  const resolvedPath = dbPath || process.env.DATABASE_URL || path.join(__dirname, '../../data/crm.db');
-  
-  if (resolvedPath !== ':memory:') {
+  const resolvedPath =
+    dbPath ||
+    process.env.DATABASE_URL ||
+    path.join(__dirname, "../../data/crm.db");
+
+  if (resolvedPath !== ":memory:") {
     const dir = path.dirname(resolvedPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -19,8 +22,8 @@ export function getDatabase(dbPath?: string): Database.Database {
   }
 
   const db = new Database(resolvedPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
 
   initSchema(db);
 
