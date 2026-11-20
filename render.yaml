@@ -24,3 +24,9 @@ projects:
             staticPublishPath: dist
             autoDeployTrigger: commit
             rootDir: frontend/
+            envVars:
+              - key: VITE_API_URL
+                fromService:
+                  name: crm-contact-backend
+                  type: web
+                  envVarKey: RENDER_EXTERNAL_HOSTNAME
