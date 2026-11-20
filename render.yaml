@@ -19,8 +19,8 @@ projects:
             name: crm-contact-frontend
             runtime: static
             repo: https://github.com/Soujannya16/crm-contact-workspace
-            plan: free
             buildCommand: npm install && npm run build
             startCommand: npm start
+            staticPublishPath: dist
             autoDeployTrigger: commit
             rootDir: frontend/
