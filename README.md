@@ -1,44 +1,3 @@
-# CRM Contact Workspace
-
-A full-stack, end-to-end CRM Contact Workspace built with **React 19**, **TypeScript**, **Redux Toolkit**, **Express**, and **SQLite**.
-
-The workspace allows users to browse, search, filter, sort, paginate, view, and update contacts, manage and bulk-assign tags, and inspect an audit trail of contact activities.
-
-- **Live Backend (Render)**: [https://crm-contact-backend-x5nh.onrender.com](https://crm-contact-backend-x5nh.onrender.com)
-- **Figma Design**: [Figma Canvas](https://www.figma.com/design/kJYSNQHgiUYXhsDm1kAQqP/Untitled?node-id=0-1&t=XuP461syWwUPd8vG-1)
-- **Detailed Architecture & Schema**: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- **System Requirements & Design**: [`docs/DESIGN.md`](docs/DESIGN.md)
-- **UI Design System Spec**: [`DESIGN.md`](DESIGN.md)
-- **Verification Checklist**: [`docs/checklist.md`](docs/checklist.md)
-
----
-
-## Tech Stack
-
-### Frontend
-- **Framework**: [React 19](https://react.dev/) with TypeScript
-- **Build Tool & Bundler**: [Vite 8](https://vitejs.dev/) with Babel plugin for [React Compiler](https://react.dev/learn/react-compiler)
-- **State Management**: [Redux Toolkit (RTK)](https://redux-toolkit.js.org/) for server-state caching and async thunks
-- **Routing**: [React Router v7](https://reactrouter.com/) (URL search params as single source of truth for list state)
-- **Styling & Typography**: Custom Design System with CSS variables, [Epilogue](https://fonts.google.com/specimen/Epilogue) (display/headings) & [JetBrains Mono](https://fonts.google.com/specimen/JetBrains+Mono) (body/data/meta)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Linting**: ESLint 10 with `typescript-eslint`
-
-### Backend
-- **Runtime**: [Node.js](https://nodejs.org/) (ES Modules / TypeScript)
-- **Framework**: [Express 4](https://expressjs.com/) with CORS middleware
-- **Database Engine**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (synchronous SQLite binding with WAL mode)
-- **Validation**: [Zod](https://zod.dev/) for strict runtime request body parsing
-- **Development Tooling**: `tsx` (fast TypeScript execution with file watching)
-- **Testing**: [Vitest](https://vitest.dev/) with [Supertest](https://github.com/ladjs/supertest)
-
-### Infrastructure & Deployment
-- **Platform**: [Render](https://render.com/) via [`render.yaml`](render.yaml) Infrastructure-as-Code
-- **Backend Service**: Node Web Service (`crm-contact-backend`)
-- **Frontend Service**: Static Site (`crm-contact-frontend`) with `VITE_API_URL` environment configuration
-
----
-
 ## How to Run the Frontend and Backend
 
 ### Prerequisites
@@ -106,7 +65,29 @@ npm run build
 npm run preview
 ```
 
----
+## Tech Stack
+
+### Frontend
+- **Framework**: [React 19](https://react.dev/) with TypeScript
+- **Build Tool & Bundler**: [Vite 8](https://vitejs.dev/) with Babel plugin for [React Compiler](https://react.dev/learn/react-compiler)
+- **State Management**: [Redux Toolkit (RTK)](https://redux-toolkit.js.org/) for server-state caching and async thunks
+- **Routing**: [React Router v7](https://reactrouter.com/) (URL search params as single source of truth for list state)
+- **Styling & Typography**: Custom Design System with CSS variables, [Epilogue](https://fonts.google.com/specimen/Epilogue) (display/headings) & [JetBrains Mono](https://fonts.google.com/specimen/JetBrains+Mono) (body/data/meta)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Linting**: ESLint 10 with `typescript-eslint`
+
+### Backend
+- **Runtime**: [Node.js](https://nodejs.org/) (ES Modules / TypeScript)
+- **Framework**: [Express 4](https://expressjs.com/) with CORS middleware
+- **Database Engine**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (synchronous SQLite binding with WAL mode)
+- **Validation**: [Zod](https://zod.dev/) for strict runtime request body parsing
+- **Development Tooling**: `tsx` (fast TypeScript execution with file watching)
+- **Testing**: [Vitest](https://vitest.dev/) with [Supertest](https://github.com/ladjs/supertest)
+
+### Infrastructure & Deployment
+- **Platform**: [Render](https://render.com/) via [`render.yaml`](render.yaml) Infrastructure-as-Code
+- **Backend Service**: Node Web Service (`crm-contact-backend`)
+- **Frontend Service**: Static Site (`crm-contact-frontend`) with `VITE_API_URL` environment configuration
 
 ## Important Technical Decisions
 
@@ -118,7 +99,6 @@ npm run preview
 
 *For complete architectural rationales, see [`docs/ARCHITECTURE.md#key-technical-decisions`](docs/ARCHITECTURE.md#key-technical-decisions).*
 
----
 
 ## Data Model
 
@@ -130,7 +110,6 @@ The persistence layer uses SQLite (WAL mode) with four relational entities:
 
 *Complete ER diagrams and SQL DDL are available in [`docs/ARCHITECTURE.md#data-model--database-schema`](docs/ARCHITECTURE.md#data-model--database-schema) and [`docs/DESIGN.md`](docs/DESIGN.md).*
 
----
 
 ## Concurrent Update Approach
 
@@ -142,7 +121,6 @@ To prevent accidental overwrites when two users edit the same contact concurrent
 
 *Flow diagram and code references are available in [`docs/ARCHITECTURE.md#concurrent-update-approach`](docs/ARCHITECTURE.md#concurrent-update-approach).*
 
----
 
 ## Known Issues / Incomplete Functionality
 
@@ -150,7 +128,6 @@ To prevent accidental overwrites when two users edit the same contact concurrent
 - **Contact Creation / Deletion**: In line with the assignment's focus on browsing, searching, filtering, updating, and tag/activity management, create and delete endpoints were not required and are not implemented.
 - **SQLite Single-Writer Concurrency**: SQLite WAL mode supports concurrent readers but serializes writes; high-volume multi-node cloud deployments would migrate to PostgreSQL.
 
----
 
 ## AI Usage Disclosure
 
@@ -158,7 +135,6 @@ To prevent accidental overwrites when two users edit the same contact concurrent
 - **UI Generation**: Used **Stitch AI** to build UI components styled to match the [Figma Design Canvas](https://www.figma.com/design/kJYSNQHgiUYXhsDm1kAQqP/Untitled?node-id=0-1&t=XuP461syWwUPd8vG-1).
 - **One AI Suggestion Changed / Rejected**: An initial AI proposal recommended client-side filtering in Redux memory. This was rejected in favor of SQL-backed backend querying to satisfy the requirement for handling millions of contacts.
 
----
 
 ## Detailed Documentation Links
 
