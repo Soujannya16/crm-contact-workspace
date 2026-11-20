@@ -20,7 +20,6 @@ projects:
             runtime: static
             repo: https://github.com/Soujannya16/crm-contact-workspace
             plan: free
-            region: oregon
             buildCommand: npm install && npm run build
             startCommand: npm start
             autoDeployTrigger: commit
