@@ -131,9 +131,9 @@ To prevent accidental overwrites when two users edit the same contact concurrent
 
 ## AI Usage Disclosure
 
-- **Methodology & Tools**: Employed **spec-driven development** using **Anthropic** (Claude) and **Google Antigravity** to scaffold features against formal specifications.
-- **UI Generation**: Used **Stitch AI** to build UI components styled to match the [Figma Design Canvas](https://www.figma.com/design/kJYSNQHgiUYXhsDm1kAQqP/Untitled?node-id=0-1&t=XuP461syWwUPd8vG-1).
-- **One AI Suggestion Changed / Rejected**: An initial AI proposal recommended client-side filtering in Redux memory. This was rejected in favor of SQL-backed backend querying to satisfy the requirement for handling millions of contacts.
+- **Methodology & Tools**: Employed **spec-driven development** using **Anthropic** (Claude) to scaffold features against formal specifications.
+- **UI Generation**: Used **Stitch AI** to build the UX based on which created the website. The design created by Stitch is in [Figma Design Canvas](https://www.figma.com/design/kJYSNQHgiUYXhsDm1kAQqP/Untitled?node-id=0-1&t=XuP461syWwUPd8vG-1).
+- **One AI Suggestion Changed / Rejected**: An initial AI proposal recommended client-side filtering in Redux memory. This was rejected in favor of SQL-backed backend querying to satisfy the requirement for handling millions of contacts. Also added memoization and debouincing for performance optimisation which was not included initially.
 
 
 ## Detailed Documentation Links
