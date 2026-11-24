@@ -124,6 +124,7 @@ To prevent accidental overwrites when two users edit the same contact concurrent
 
 ## Known Issues / Incomplete Functionality
 
+- **Initial API Response on Render Free Tier**: The first API request after inactivity may be delayed while the backend wakes; a `304` response on later requests indicates the browser's cached response is still valid.
 - **Bulk Selection Scope**: Bulk tag assignment currently applies to contacts selected on the active page view rather than across all paginated pages.
 - **Contact Creation / Deletion**: In line with the assignment's focus on browsing, searching, filtering, updating, and tag/activity management, create and delete endpoints were not required and are not implemented.
 - **SQLite Single-Writer Concurrency**: SQLite WAL mode supports concurrent readers but serializes writes; high-volume multi-node cloud deployments would migrate to PostgreSQL.
